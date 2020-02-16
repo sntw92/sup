@@ -9,9 +9,9 @@ Stack Up is a simple deployment tool that performs given set of commands on mult
 
 *Note: Demo is based on [this example Supfile](./example/Supfile).*
 
-# Installation
+# Fetch and Build
 
-    $ go get -u github.com/pressly/sup/cmd/sup
+    $ git clone github.com/sntw92/sup && cd sup && make build
 
 # Usage
 
@@ -19,16 +19,17 @@ Stack Up is a simple deployment tool that performs given set of commands on mult
 
 ### Options
 
-| Option            | Description                      |
-|-------------------|----------------------------------|
-| `-f Supfile`      | Custom path to Supfile           |
-| `-e`, `--env=[]`  | Set environment variables        |
-| `--only REGEXP`   | Filter hosts matching regexp     |
-| `--except REGEXP` | Filter out hosts matching regexp |
-| `--debug`, `-D`   | Enable debug/verbose mode        |
-| `--disable-prefix`| Disable hostname prefix          |
-| `--help`, `-h`    | Show help/usage                  |
-| `--version`, `-v` | Print version                    |
+| Option                | Description                      |
+|-----------------------|----------------------------------|
+| `-f Supfile`          | Custom path to Supfile           |
+| `-e`, `--env=[]`      | Set environment variables        |
+| `--only REGEXP`       | Filter hosts matching regexp     |
+| `--except REGEXP`     | Filter out hosts matching regexp |
+| `--debug`, `-D`       | Enable debug/verbose mode        |
+| `--disable-prefix    `| Disable hostname prefix          |
+| `--help`, `-h`        | Show help/usage                  |
+| `--version`, `-v`     | Print version                    |
+| `--ignore-ssh-errors` | Ignore SSH connection errors     |
 
 ## Network
 

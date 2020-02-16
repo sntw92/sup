@@ -64,12 +64,12 @@ func (c *SSHClient) parseHost(host string) error {
 		c.user = u.Username
 	}
 
-	if strings.Index(c.host, "/") != -1 {
+	if strings.Contains(c.host, "/") {
 		return ErrConnect{c.user, c.host, "unexpected slash in the host URL"}
 	}
 
 	// Add default port, if not set
-	if strings.Index(c.host, ":") == -1 {
+	if strings.Contains(c.host, ":") {
 		c.host += ":22"
 	}
 
@@ -138,6 +138,11 @@ func (c *SSHClient) ConnectWith(host string, dialer SSHDialFunc) error {
 		User: c.user,
 		Auth: []ssh.AuthMethod{
 			authMethod,
+		},
+		// Leaving this nil does not work after https://github.com/golang/go/issues/19767.
+		// Hence this dummy func to accept all Hosts without complaining (to keep old behaviour)
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
 		},
 	}
 

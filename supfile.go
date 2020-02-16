@@ -255,7 +255,7 @@ type ErrUnsupportedSupfileVersion struct {
 }
 
 func (e ErrMustUpdate) Error() string {
-	return fmt.Sprintf("%v\n\nPlease update sup by `go get -u github.com/pressly/sup/cmd/sup`", e.Msg)
+	return fmt.Sprintf("%v\n\nPlease update sup from `github.com/sntw92/sup`", e.Msg)
 }
 
 func (e ErrUnsupportedSupfileVersion) Error() string {
@@ -313,7 +313,7 @@ func NewSupfile(data []byte) (*Supfile, error) {
 			}
 		}
 		if warning != "" {
-			fmt.Fprintf(os.Stderr, warning)
+			fmt.Fprint(os.Stderr, warning)
 		}
 
 		fallthrough

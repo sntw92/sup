@@ -16,9 +16,10 @@ import (
 const VERSION = "0.5"
 
 type Stackup struct {
-	conf   *Supfile
-	debug  bool
-	prefix bool
+	conf            *Supfile
+	debug           bool
+	prefix          bool
+	ignoreSshErrors bool
 }
 
 func New(conf *Supfile) (*Stackup, error) {
@@ -97,6 +98,7 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 	var clients []Client
 	for client := range clientCh {
 		if remote, ok := client.(*SSHClient); ok {
+			//lint:ignore SA9001 we want to close the connections at the end of function, not loop, anyways.
 			defer remote.Close()
 		}
 		_, prefixLen := client.Prefix()
@@ -106,7 +108,11 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 		clients = append(clients, client)
 	}
 	for err := range errCh {
-		return errors.Wrap(err, "connecting to clients failed")
+		if sup.ignoreSshErrors {
+			fmt.Fprintf(os.Stderr, "%v\n", errors.Wrap(err, "connecting to clients failed"))
+		} else {
+			return errors.Wrap(err, "connecting to clients failed")
+		}
 	}
 
 	// Run command or run multiple commands defined by target sequentially.
@@ -183,16 +189,14 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 			signal.Notify(trap, os.Interrupt)
 			go func() {
 				for {
-					select {
-					case sig, ok := <-trap:
-						if !ok {
-							return
-						}
-						for _, c := range task.Clients {
-							err := c.Signal(sig)
-							if err != nil {
-								fmt.Fprintf(os.Stderr, "%v", errors.Wrap(err, "sending signal failed"))
-							}
+					sig, ok := <-trap
+					if !ok {
+						return
+					}
+					for _, c := range task.Clients {
+						err := c.Signal(sig)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "%v", errors.Wrap(err, "sending signal failed"))
 						}
 					}
 				}
@@ -246,4 +250,8 @@ func (sup *Stackup) Debug(value bool) {
 
 func (sup *Stackup) Prefix(value bool) {
 	sup.prefix = value
+}
+
+func (sup *Stackup) IgnoreSshErrors(value bool) {
+	sup.ignoreSshErrors = value
 }

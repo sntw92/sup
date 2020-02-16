@@ -14,7 +14,7 @@ import (
 
 	"github.com/mikkeloscar/sshconfig"
 	"github.com/pkg/errors"
-	"github.com/pressly/sup"
+	"github.com/sntw92/sup"
 )
 
 var (
@@ -24,8 +24,9 @@ var (
 	onlyHosts   string
 	exceptHosts string
 
-	debug         bool
-	disablePrefix bool
+	debug           bool
+	disablePrefix   bool
+	ignoreSshErrors bool
 
 	showVersion bool
 	showHelp    bool
@@ -60,6 +61,7 @@ func init() {
 	flag.BoolVar(&debug, "D", false, "Enable debug mode")
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
 	flag.BoolVar(&disablePrefix, "disable-prefix", false, "Disable hostname prefix")
+	flag.BoolVar(&ignoreSshErrors, "ignore-ssh-errors", false, "Ignore SSH connection errors")
 
 	flag.BoolVar(&showVersion, "v", false, "Print version")
 	flag.BoolVar(&showVersion, "version", false, "Print version")
@@ -373,6 +375,7 @@ func main() {
 	}
 	app.Debug(debug)
 	app.Prefix(!disablePrefix)
+	app.IgnoreSshErrors(ignoreSshErrors)
 
 	// Run all the commands in the given network.
 	err = app.Run(network, vars, commands...)
