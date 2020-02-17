@@ -94,6 +94,10 @@ func (c *LocalhostClient) Prefix() (string, int) {
 	return ResetColor + host, len(host)
 }
 
+func (c *LocalhostClient) Host() string {
+	return "localhost"
+}
+
 func (c *LocalhostClient) Write(p []byte) (n int, err error) {
 	return c.stdin.Write(p)
 }

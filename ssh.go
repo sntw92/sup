@@ -69,7 +69,7 @@ func (c *SSHClient) parseHost(host string) error {
 	}
 
 	// Add default port, if not set
-	if strings.Contains(c.host, ":") {
+	if !strings.Contains(c.host, ":") {
 		c.host += ":22"
 	}
 
@@ -269,6 +269,10 @@ func (c *SSHClient) Stdout() io.Reader {
 func (c *SSHClient) Prefix() (string, int) {
 	host := c.user + "@" + c.host + " | "
 	return c.color + host + ResetColor, len(host)
+}
+
+func (c *SSHClient) Host() string {
+	return c.host
 }
 
 func (c *SSHClient) Write(p []byte) (n int, err error) {

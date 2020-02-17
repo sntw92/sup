@@ -11,6 +11,7 @@ type Client interface {
 	Wait() error
 	Close() error
 	Prefix() (string, int)
+	Host() string
 	Write(p []byte) (n int, err error)
 	WriteClose() error
 	Stdin() io.WriteCloser

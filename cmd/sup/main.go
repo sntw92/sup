@@ -23,10 +23,11 @@ var (
 	sshConfig   string
 	onlyHosts   string
 	exceptHosts string
+	summaryFile string
 
-	debug           bool
-	disablePrefix   bool
-	ignoreSshErrors bool
+	debug         bool
+	disablePrefix bool
+	ignoreError   bool
 
 	showVersion bool
 	showHelp    bool
@@ -57,11 +58,12 @@ func init() {
 	flag.StringVar(&sshConfig, "sshconfig", "", "Read SSH Config file, ie. ~/.ssh/config file")
 	flag.StringVar(&onlyHosts, "only", "", "Filter hosts using regexp")
 	flag.StringVar(&exceptHosts, "except", "", "Filter out hosts using regexp")
+	flag.StringVar(&summaryFile, "summary", "", "Dump JSON summary of errors to the specified file")
 
 	flag.BoolVar(&debug, "D", false, "Enable debug mode")
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
 	flag.BoolVar(&disablePrefix, "disable-prefix", false, "Disable hostname prefix")
-	flag.BoolVar(&ignoreSshErrors, "ignore-ssh-errors", false, "Ignore SSH connection errors")
+	flag.BoolVar(&ignoreError, "ignore-error", false, "Collect errors and exit only at end")
 
 	flag.BoolVar(&showVersion, "v", false, "Print version")
 	flag.BoolVar(&showVersion, "version", false, "Print version")
@@ -375,7 +377,8 @@ func main() {
 	}
 	app.Debug(debug)
 	app.Prefix(!disablePrefix)
-	app.IgnoreSshErrors(ignoreSshErrors)
+	app.IgnoreError(ignoreError)
+	app.Summary(summaryFile)
 
 	// Run all the commands in the given network.
 	err = app.Run(network, vars, commands...)

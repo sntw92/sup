@@ -1,6 +1,7 @@
 package sup
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,16 +17,49 @@ import (
 const VERSION = "0.5"
 
 type Stackup struct {
-	conf            *Supfile
-	debug           bool
-	prefix          bool
-	ignoreSshErrors bool
+	conf        *Supfile
+	debug       bool
+	prefix      bool
+	ignoreError bool
+	summaryFile string
 }
 
 func New(conf *Supfile) (*Stackup, error) {
 	return &Stackup{
 		conf: conf,
 	}, nil
+}
+
+type ClientError struct {
+	Host     string `json:"host"`
+	Type     string `json:"type"`
+	Err      error  `json:"error"`
+	ExitCode int    `json:"exit_code"`
+}
+
+func (e *ClientError) Error() string {
+	return fmt.Sprintf("%s: %v", e.Type, e.Err)
+}
+
+func (e *ClientError) normalForm() interface{} {
+	if e == nil {
+		return nil
+	}
+	return &struct {
+		Host     string `json:"host"`
+		Type     string `json:"type"`
+		Error    string `json:"error"`
+		ExitCode int    `json:"exit_code"`
+	}{
+		Host:     e.Host,
+		Type:     e.Type,
+		Error:    e.Error(),
+		ExitCode: e.ExitCode,
+	}
+}
+
+func (e *ClientError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.normalForm())
 }
 
 // Run runs set of commands on multiple hosts defined by network sequentially.
@@ -35,6 +69,8 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 	if len(commands) == 0 {
 		return errors.New("no commands to be run")
 	}
+
+	var clientErrors []ClientError
 
 	env := envVars.AsExport()
 
@@ -49,7 +85,7 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 
 	var wg sync.WaitGroup
 	clientCh := make(chan Client, len(network.Hosts))
-	errCh := make(chan error, len(network.Hosts))
+	errCh := make(chan ClientError, len(network.Hosts))
 
 	for i, host := range network.Hosts {
 		wg.Add(1)
@@ -62,7 +98,7 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 					env: env + `export SUP_HOST="` + host + `";`,
 				}
 				if err := local.Connect(host); err != nil {
-					errCh <- errors.Wrap(err, "connecting to localhost failed")
+					errCh <- ClientError{Host: host, Type: "conn", Err: errors.Wrap(err, "connecting to localhost failed"), ExitCode: -1}
 					return
 				}
 				clientCh <- local
@@ -78,12 +114,12 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 
 			if bastion != nil {
 				if err := remote.ConnectWith(host, bastion.DialThrough); err != nil {
-					errCh <- errors.Wrap(err, "connecting to remote host through bastion failed")
+					errCh <- ClientError{Host: host, Type: "conn", Err: errors.Wrap(err, "connecting to remote host through bastion failed"), ExitCode: -1}
 					return
 				}
 			} else {
 				if err := remote.Connect(host); err != nil {
-					errCh <- errors.Wrap(err, "connecting to remote host failed")
+					errCh <- ClientError{Host: host, Type: "conn", Err: errors.Wrap(err, "connecting to remote host failed"), ExitCode: -1}
 					return
 				}
 			}
@@ -108,10 +144,11 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 		clients = append(clients, client)
 	}
 	for err := range errCh {
-		if sup.ignoreSshErrors {
-			fmt.Fprintf(os.Stderr, "%v\n", errors.Wrap(err, "connecting to clients failed"))
+		if sup.ignoreError {
+			fmt.Fprintf(os.Stderr, "%v\n", err.Err)
+			clientErrors = append(clientErrors, err)
 		} else {
-			return errors.Wrap(err, "connecting to clients failed")
+			return err.Err
 		}
 	}
 
@@ -134,7 +171,7 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 				var prefixLen int
 				if sup.prefix {
 					prefix, prefixLen = c.Prefix()
-					if len(prefix) < maxLen { // Left padding.
+					if prefixLen < maxLen { // Left padding.
 						prefix = strings.Repeat(" ", maxLen-prefixLen) + prefix
 					}
 				}
@@ -215,19 +252,25 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 						if sup.prefix {
 							var prefixLen int
 							prefix, prefixLen = c.Prefix()
-							if len(prefix) < maxLen { // Left padding.
+							if prefixLen < maxLen { // Left padding.
 								prefix = strings.Repeat(" ", maxLen-prefixLen) + prefix
 							}
 						}
 						if e, ok := err.(*ssh.ExitError); ok && e.ExitStatus() != 15 {
 							// TODO: Store all the errors, and print them after Wait().
 							fmt.Fprintf(os.Stderr, "%s%v\n", prefix, e)
-							os.Exit(e.ExitStatus())
+							if sup.ignoreError {
+								clientErrors = append(clientErrors, ClientError{Host: c.Host(), Type: "run", Err: e, ExitCode: e.ExitStatus()})
+							} else {
+								os.Exit(e.ExitStatus())
+							}
 						}
 						fmt.Fprintf(os.Stderr, "%s%v\n", prefix, err)
 
 						// TODO: Shouldn't os.Exit(1) here. Instead, collect the exit statuses for later.
-						os.Exit(1)
+						if !sup.ignoreError {
+							os.Exit(1)
+						}
 					}
 				}(c)
 			}
@@ -238,6 +281,31 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 			// Stop catching signals for the currently active clients.
 			signal.Stop(trap)
 			close(trap)
+		}
+	}
+
+	if len(clientErrors) > 0 {
+		if sup.summaryFile != "" {
+			outFile, err := os.OpenFile(sup.summaryFile, os.O_APPEND|os.O_CREATE, 0664)
+			if err != nil || outFile == nil {
+				fmt.Fprintf(os.Stderr, "could not open summary file '%s' for writing: %v", sup.summaryFile, err.Error())
+				os.Exit(2)
+			}
+			defer outFile.Close()
+
+			data, err := json.MarshalIndent(clientErrors, "", "  ")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "BUG! could not marshal errors json: %s", err.Error())
+				os.Exit(2)
+			}
+			fmt.Fprint(outFile, string(data))
+		}
+
+		// TODO: Fix return logic with error types. Is it OK to ignore connection errors?
+		for _, e := range clientErrors {
+			if e.Type != "conn" {
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -252,6 +320,10 @@ func (sup *Stackup) Prefix(value bool) {
 	sup.prefix = value
 }
 
-func (sup *Stackup) IgnoreSshErrors(value bool) {
-	sup.ignoreSshErrors = value
+func (sup *Stackup) IgnoreError(value bool) {
+	sup.ignoreError = value
+}
+
+func (sup *Stackup) Summary(value string) {
+	sup.summaryFile = value
 }
