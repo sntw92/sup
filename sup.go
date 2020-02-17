@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-const VERSION = "0.5"
+const VERSION = "0.6.1"
 
 type Stackup struct {
 	conf        *Supfile
@@ -209,7 +209,12 @@ func (sup *Stackup) Run(network *Network, envVars EnvList, commands ...*Command)
 			// Copy over task's STDIN.
 			if task.Input != nil {
 				go func() {
-					writer := io.MultiWriter(writers...)
+					var writer io.Writer
+					if sup.ignoreError {
+						writer = SilentMultiWriter(writers...)
+					} else {
+						writer = io.MultiWriter(writers...)
+					}
 					_, err := io.Copy(writer, task.Input)
 					if err != nil && err != io.EOF {
 						fmt.Fprintf(os.Stderr, "%v", errors.Wrap(err, "copying STDIN failed"))
