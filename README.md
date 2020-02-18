@@ -3,12 +3,6 @@ Stack Up
 
 Stack Up is a simple deployment tool that performs given set of commands on multiple hosts in parallel. It reads Supfile, a YAML configuration file, which defines networks (groups of hosts), commands and targets.
 
-# Demo
-
-[![Sup](https://github.com/pressly/sup/blob/gif/asciinema.gif?raw=true)](https://asciinema.org/a/19742?autoplay=1)
-
-*Note: Demo is based on [this example Supfile](./example/Supfile).*
-
 # Fetch and Build
 
     $ git clone github.com/sntw92/sup && cd sup && make build
@@ -19,17 +13,18 @@ Stack Up is a simple deployment tool that performs given set of commands on mult
 
 ### Options
 
-| Option                | Description                      |
-|-----------------------|----------------------------------|
-| `-f Supfile`          | Custom path to Supfile           |
-| `-e`, `--env=[]`      | Set environment variables        |
-| `--only REGEXP`       | Filter hosts matching regexp     |
-| `--except REGEXP`     | Filter out hosts matching regexp |
-| `--debug`, `-D`       | Enable debug/verbose mode        |
-| `--disable-prefix    `| Disable hostname prefix          |
-| `--help`, `-h`        | Show help/usage                  |
-| `--version`, `-v`     | Print version                    |
-| `--ignore-ssh-errors` | Ignore SSH connection errors     |
+| Option                | Description                           |
+|-----------------------|---------------------------------------|
+| `-f Supfile`          | Custom path to Supfile                |
+| `-e`, `--env=[]`      | Set environment variables             |
+| `--only REGEXP`       | Filter hosts matching regexp          |
+| `--except REGEXP`     | Filter out hosts matching regexp      |
+| `--debug`, `-D`       | Enable debug/verbose mode             |
+| `--disable-prefix`    | Disable hostname prefix               |
+| `--help`, `-h`        | Show help/usage                       |
+| `--version`, `-v`     | Print version                         |
+| `--ignore-error`      | Ignore SSH connection errors          |
+| `--summary out.json`  | Dump summary of errors to a JSON file |
 
 ## Network
 
