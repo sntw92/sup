@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -17,18 +18,19 @@ import (
 
 // Client is a wrapper over the SSH connection/sessions.
 type SSHClient struct {
-	conn         *ssh.Client
-	sess         *ssh.Session
-	user         string
-	host         string
-	remoteStdin  io.WriteCloser
-	remoteStdout io.Reader
-	remoteStderr io.Reader
-	connOpened   bool
-	sessOpened   bool
-	running      bool
-	env          string //export FOO="bar"; export BAR="baz";
-	color        string
+	conn           *ssh.Client
+	sess           *ssh.Session
+	user           string
+	host           string
+	remoteStdin    io.WriteCloser
+	remoteStdout   io.Reader
+	remoteStderr   io.Reader
+	connOpened     bool
+	sessOpened     bool
+	running        bool
+	env            string //export FOO="bar"; export BAR="baz";
+	color          string
+	ConnectTimeout int
 }
 
 type ErrConnect struct {
@@ -144,6 +146,7 @@ func (c *SSHClient) ConnectWith(host string, dialer SSHDialFunc) error {
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
+		Timeout: time.Duration(c.ConnectTimeout) * time.Second,
 	}
 
 	c.conn, err = dialer("tcp", c.host, config)

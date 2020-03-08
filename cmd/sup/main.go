@@ -18,12 +18,13 @@ import (
 )
 
 var (
-	supfile     string
-	envVars     flagStringSlice
-	sshConfig   string
-	onlyHosts   string
-	exceptHosts string
-	summaryFile string
+	supfile           string
+	envVars           flagStringSlice
+	sshConfig         string
+	sshConnectTimeout int
+	onlyHosts         string
+	exceptHosts       string
+	summaryFile       string
 
 	debug         bool
 	disablePrefix bool
@@ -53,9 +54,13 @@ func (f *flagStringSlice) Set(value string) error {
 
 func init() {
 	flag.StringVar(&supfile, "f", "", "Custom path to ./Supfile[.yml]")
+
 	flag.Var(&envVars, "e", "Set environment variables")
 	flag.Var(&envVars, "env", "Set environment variables")
-	flag.StringVar(&sshConfig, "sshconfig", "", "Read SSH Config file, ie. ~/.ssh/config file")
+
+	flag.StringVar(&sshConfig, "ssh-config", "", "Read SSH Config file, ie. ~/.ssh/config file")
+	flag.IntVar(&sshConnectTimeout, "ssh-connect-timeout", 0, "The ssh connection timeout (in seconds, 0 = infinite)")
+
 	flag.StringVar(&onlyHosts, "only", "", "Filter hosts using regexp")
 	flag.StringVar(&exceptHosts, "except", "", "Filter out hosts using regexp")
 	flag.StringVar(&summaryFile, "summary", "", "Dump JSON summary of errors to the specified file")
