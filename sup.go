@@ -336,3 +336,7 @@ func (sup *Stackup) IgnoreError(value bool) {
 func (sup *Stackup) Summary(value string) {
 	sup.summaryFile = value
 }
+
+func (sup *Stackup) SetSshConnectionTimeout(value int) {
+	sup.sshConnectTimeout = value
+}

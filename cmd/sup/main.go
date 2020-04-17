@@ -384,6 +384,7 @@ func main() {
 	app.Prefix(!disablePrefix)
 	app.IgnoreError(ignoreError)
 	app.Summary(summaryFile)
+	app.SetSshConnectionTimeout(sshConnectTimeout)
 
 	// Run all the commands in the given network.
 	err = app.Run(network, vars, commands...)

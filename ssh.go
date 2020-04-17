@@ -121,10 +121,31 @@ func (c *SSHClient) Connect(host string) error {
 	return c.ConnectWith(host, ssh.Dial)
 }
 
-// ConnectWith creates a SSH connection to a specified host. It will use dialer to establish the
+func (c *SSHClient) ConnectWith(host string, dialer SSHDialFunc) error {
+	if c.ConnectTimeout == 0 {
+		return c.ConnectWithHelper(host, dialer)
+	}
+
+	done := make(chan struct{}, 1)
+	sshRes := fmt.Errorf("Connection Timed for host: %s", host)
+
+	go func() {
+		sshRes = c.ConnectWithHelper(host, dialer)
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Duration(c.ConnectTimeout) * time.Second):
+	}
+
+	return sshRes
+}
+
+// ConnectWithHelper creates a SSH connection to a specified host. It will use dialer to establish the
 // connection.
 // TODO: Split Signers to its own method.
-func (c *SSHClient) ConnectWith(host string, dialer SSHDialFunc) error {
+func (c *SSHClient) ConnectWithHelper(host string, dialer SSHDialFunc) error {
 	if c.connOpened {
 		return fmt.Errorf("Already connected")
 	}
